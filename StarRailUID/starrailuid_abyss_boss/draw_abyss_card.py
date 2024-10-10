@@ -10,7 +10,6 @@ from gsuid_core.utils.image.image_tools import (
     get_qq_avatar,
 )
 
-from .utils import get_icon
 from ..sruid_utils.api.mys.models import AbyssAvatar
 from ..utils.fonts.starrail_fonts import (
     sr_font_22,
@@ -20,6 +19,7 @@ from ..utils.fonts.starrail_fonts import (
     sr_font_42,
 )
 from ..utils.mys_api import mys_api
+from ..utils.resource.get_pic_from import get_roleinfo_icon
 
 TEXT_PATH = Path(__file__).parent / "texture2D"
 white_color = (255, 255, 255)
@@ -57,7 +57,7 @@ async def _draw_abyss_card(
     # # 确认角色头像路径
     # char_pic_path = CHAR_ICON_PATH / f'{char_id}.png'
     char_bg = (char_bg_4 if char.rarity == 4 else char_bg_5).copy()
-    char_icon = (await get_icon(char.icon)).resize((150, 170))
+    char_icon = (await get_roleinfo_icon(char.icon)).resize((150, 170))
     element_icon = elements[char.element]
     char_bg.paste(char_icon, (24, 16), mask=char_icon)
     char_bg.paste(level_cover, (0, 0), mask=level_cover)
@@ -92,6 +92,7 @@ async def _draw_floor_card(
     img: Image.Image,
     index_floor: int,
     floor_name: str,
+    sum_score: Union[int, None],
 ):
     for index_num in [0, 1, 2]:
         star_num = index_num + 1
@@ -108,6 +109,15 @@ async def _draw_floor_card(
         fill=white_color,
         anchor="mm",
     )
+    #总分todo
+    if sum_score:
+        floor_pic_draw.text(
+            (800, 60),
+            f"{sum_score}",
+            font=sr_font_42,
+            fill="#fec86f",
+            anchor="rm",
+        )
     img.paste(floor_pic, (0, 657 + index_floor * 570), floor_pic)
 
 
@@ -192,12 +202,18 @@ async def draw_abyss_img(
         floor_name = level.name
         node_1 = level.node_1
         node_2 = level.node_2
+        if node_1.score and node_2.score:
+            sum_score = int(node_1.score) + int(node_2.score)
+        else:
+            sum_score = None
         for index_part in [0, 1]:
             node_num = index_part + 1
             if node_num == 1:
                 time_array = node_1.challenge_time
+                score = node_1.score
             else:
                 time_array = node_2.challenge_time
+                score = node_2.score
             assert time_array is not None
             time_str = f"{time_array.year}-{time_array.month}"
             time_str = f"{time_str}-{time_array.day}"
@@ -217,6 +233,15 @@ async def draw_abyss_img(
                 sr_font_22,
                 "lm",
             )
+            # 分数todo
+            if score :
+                floor_pic_draw.text(
+                (800, 120 + index_part * 219),
+                f"{score}",
+                "#fec86f",
+                sr_font_30,
+                "rm",
+            )
             if node_num == 1:
                 avatars_array = node_1
             else:
@@ -235,6 +260,7 @@ async def draw_abyss_img(
             img,
             index_floor,
             floor_name,
+            sum_score,
         )
 
     res = await convert_img(img)
